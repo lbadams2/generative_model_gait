@@ -22,4 +22,9 @@ def trainDBN(learning_rate, k1, k2, epochs, batch_size, dims):
 
 if __name__ == "__main__":
     # dimensions is list of [visible, hidden, visible, hidden, etc]
+    # k1 used in PCD, time steps for initial sample
+    # k2 used in CD and PCD for all other samples
+    k1 = 1
+    k1 = 5
+    dimensions = '6,3,6,3,6,3'
     trainDBN(learning_rate, k1, k2, epochs, batch_size, dimensions)
