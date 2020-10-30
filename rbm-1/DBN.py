@@ -1,4 +1,5 @@
-
+import tensorflow as tf
+from RBM import RBM
 
 class DBN:
     # k1 used in PCD, time steps for initial sample
@@ -6,7 +7,7 @@ class DBN:
     def __init__(self, dims, learning_rate = 0.01, k1 = 1, k2 = 5, epochs = 1, batch_size = 5):
         # create list of RBMs, dims is list even number of elems, first pair is visible/hidden for first RBM, second pair is v/h, etc
         # each RBM initialized with weights and biases
-        self.models = [RBM(num_visible=dims[i],num_hidden=dims[i+1],
+        self.models = [RBM(visible_neurons=dims[i],hidden_neurons=dims[i+1],
                            learning_rate=learning_rate, k1=k1, k2=k2, epochs=epochs,
                            batch_size=batch_size) for i in range(len(dims)-1)]
         self.top_samples = None

@@ -1,4 +1,4 @@
-
+import tensorflow as tf
 
 class RBM:
 
@@ -14,11 +14,11 @@ class RBM:
         self.batch_size = batch_size
 
         # initial weight matrix mapping visible to hidden layer
-        self.w = tf.Variable(tf.random.uniform(shape=(num_hidden,num_visible), maxval=1, minval=-1),dtype="float32")
+        self.w = tf.Variable(tf.random.uniform(shape=(hidden_neurons,visible_neurons), maxval=1, minval=-1),dtype="float32")
         # initial bias vector for hidden variables
-        self.b_h = tf.Variable(tf.random.uniform(shape=(num_hidden,1), maxval=1, minval=-1),dtype="float32")
+        self.b_h = tf.Variable(tf.random.uniform(shape=(hidden_neurons,1), maxval=1, minval=-1),dtype="float32")
         # initial bias vector for visible variables
-        self.b_v = tf.Variable(tf.random.uniform(shape=(num_visible,1), maxval=1, minval=-1),dtype="float32")
+        self.b_v = tf.Variable(tf.random.uniform(shape=(visible_neurons,1), maxval=1, minval=-1),dtype="float32")
 
 
     # q1 and q2 are optional extra weights applied to visible and hidden probability calculations
@@ -156,7 +156,7 @@ class RBM:
     # @tf.function
     def persistive_contrastive_divergence_k(self, tensors, position = None):
         """ learn and update weights/biases via PCD-k algorithm """
-        tensors = self.chunks(tensors,self.batch_size)
+        #tensors = self.chunks(tensors,self.batch_size)
         num_samples = len(tensors)
         # augment last batch in case missing some data
         if len(tensors[num_samples-1]) != self.batch_size:
@@ -175,35 +175,37 @@ class RBM:
                         tf.print("Mean gradient 2-norm: ", tf.reduce_mean([log_g/j,log_h/j,log_v/j]))
                 # compute starting gradient
                 batch = tf.stack(batch)
+                batch = tf.cast(batch, dtype='float32')
+                batch = tf.expand_dims(batch, axis=2)
                 if position is None:
-                    u = tf.map_fn(self.prop_up,batch)
+                    u = tf.map_fn(self.h_given_v,batch)
                     g = tf.reduce_mean(tf.stack([tf.matmul(u[i],tf.transpose(batch[i])) for i in range(self.batch_size)]),0)
                     # compute sampled gibbs
                     if j == 0:
                         v_new = tf.map_fn(lambda x: self.gibbs_sampling(x,self.k1),batch) # k1 (time steps) only used in PCD on first sample of epoch
                     ''' this is difference, sample from previous v_new rather than from training set'''
                     v_new = tf.map_fn(lambda x: self.gibbs_sampling(x,self.k2),v_new) 
-                    u_new = tf.map_fn(self.prop_up,v_new)
+                    u_new = tf.map_fn(self.h_given_v,v_new)
                     # compute change to gradient, average gradient shifts before adding
                     g_delta = -1*tf.reduce_mean(tf.stack([tf.matmul(u_new[i],tf.transpose(v_new[i])) for i in range(self.batch_size)]),0)
                 elif position == "bottom":
-                    u = tf.map_fn(lambda x: self.prop_up(x,q=2),batch)
+                    u = tf.map_fn(lambda x: self.h_given_v(x,q=2),batch)
                     g = tf.reduce_mean(tf.stack([tf.matmul(u[i],tf.transpose(batch[i])) for i in range(self.batch_size)]),0)
                     # compute sampled gibbs
                     if j == 0:
                         v_new = tf.map_fn(lambda x: self.gibbs_sampling(x,self.k1,q1=2,q2=1),batch)
                     v_new = tf.map_fn(lambda x: self.gibbs_sampling(x,self.k2,q1=2,q2=1),v_new)
-                    u_new = tf.map_fn(lambda x: self.prop_up(x,q=2),v_new)
+                    u_new = tf.map_fn(lambda x: self.h_given_v(x,q=2),v_new)
                     # compute change to gradient, average gradient shifts before adding
                     g_delta = -1*tf.reduce_mean(tf.stack([tf.matmul(u_new[i],tf.transpose(v_new[i])) for i in range(self.batch_size)]),0)
                 elif position == "top":
-                    u = tf.map_fn(lambda x: self.prop_up(x,q=1),batch)
+                    u = tf.map_fn(lambda x: self.h_given_v(x,q=1),batch)
                     g = tf.reduce_mean(tf.stack([tf.matmul(u[i],tf.transpose(batch[i])) for i in range(self.batch_size)]),0)
                     # compute sampled gibbs
                     if j == 0:
                         v_new = tf.map_fn(lambda x: self.gibbs_sampling(x,self.k1,q1=1,q2=2),batch)
                     v_new = tf.map_fn(lambda x: self.gibbs_sampling(x,self.k2,q1=1,q2=2),v_new)
-                    u_new = tf.map_fn(lambda x: self.prop_up(x,q=1),v_new)
+                    u_new = tf.map_fn(lambda x: self.h_given_v(x,q=1),v_new)
                     # compute change to gradient, average gradient shifts before adding
                     g_delta = -1*tf.reduce_mean(tf.stack([tf.matmul(u_new[i],tf.transpose(v_new[i])) for i in range(self.batch_size)]),0)
                 # update gradient and log result
